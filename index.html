@@ -7,11 +7,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>Performance Planner</title>
     
-    <!-- External Libraries (CDNs) -->
+    <!-- Libraries via CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -32,20 +32,21 @@
             background-color: var(--bg);
             color: var(--text-primary);
             margin: 0;
-            overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
         }
 
-        .selection-accent::selection {
-            background: var(--accent);
-            color: white;
-        }
-        
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #DDD; border-radius: 10px; }
 
+        /* iOS Safe Area */
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        
+        .selection-accent::selection {
+            background: var(--accent);
+            color: white;
+        }
     </style>
 
     <script>
@@ -57,7 +58,10 @@
                         card: '#FFFFFF',
                         border: '#EAEAEA',
                         accent: '#000000',
-                        text: { primary: '#000000', secondary: '#666666' }
+                        text: {
+                            primary: '#000000',
+                            secondary: '#666666'
+                        }
                     }
                 }
             }
@@ -67,32 +71,38 @@
 <body class="selection-accent">
     <div id="root"></div>
 
-    <script type="text/babel" data-presets="react">
+    <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
         const { motion, AnimatePresence } = FramerMotion;
 
-        // --- Configuration & Helpers ---
+        // --- Constants ---
         const DEFAULT_PLAN = [
-            { day: 'Montag', title: 'Push (Kraft)', description: 'Brust, Schultern, Trizeps. Grundübungen.', type: 'Strength' },
-            { day: 'Dienstag', title: 'Intervalltraining', description: '4:15 min/km Pace. 8x800m.', type: 'Running' },
-            { day: 'Mittwoch', title: 'Pull (Kraft)', description: 'Rücken, Bizeps. Fokus auf Klimmzüge.', type: 'Strength' },
-            { day: 'Donnerstag', title: 'Tempolauf', description: '10km Fokus auf Pace-Einhaltung.', type: 'Running' },
-            { day: 'Freitag', title: 'Legs (Kraft)', description: 'Kniebeugen, Kreuzheben. Maximalkraft.', type: 'Strength' },
-            { day: 'Samstag', title: 'Longrun', description: 'Grundlagenausdauer. 18-22km locker.', type: 'Running' },
-            { day: 'Sonntag', title: 'Recovery', description: 'Schwimmen oder Mobility-Session.', type: 'Recovery' },
+            { day: 'Montag', title: 'Push (Kraft)', description: 'Brust, Schultern, Trizeps. Grundübungen mit hoher Intensität.', type: 'Strength' },
+            { day: 'Dienstag', title: 'Intervalltraining', description: '4:15 min/km Pace. 8x800m mit 2min Pause.', type: 'Running' },
+            { day: 'Mittwoch', title: 'Pull (Kraft)', description: 'Rücken, Bizeps. Fokus auf Klimmzüge und Rudern.', type: 'Strength' },
+            { day: 'Donnerstag', title: 'Tempolauf', description: '10km in moderat-hohem Tempo. Zielpace: 4:45 min/km.', type: 'Running' },
+            { day: 'Freitag', title: 'Legs (Kraft)', description: 'Kniebeugen, Kreuzheben. Maximalkraft-Fokus.', type: 'Strength' },
+            { day: 'Samstag', title: 'Longrun', description: 'Grundlagenausdauer. 18-22km bei lockerem Tempo.', type: 'Running' },
+            { day: 'Sonntag', title: 'Recovery', description: 'Schwimmen oder Mobility-Session. Aktive Regeneration.', type: 'Recovery' },
         ];
 
-        const dayMap = { 1: 'Montag', 2: 'Dienstag', 3: 'Mittwoch', 4: 'Donnerstag', 5: 'Freitag', 6: 'Samstag', 0: 'Sonntag' };
-        const getISODate = (date) => date.toISOString().split('T')[0];
-        const formatDate = (date) => new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
-
-        // --- Custom Icon Component ---
-        const Icon = ({ name, size = 16, className = "" }) => {
-            useEffect(() => { lucide.createIcons(); }, []);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size, display: 'inline-flex', alignItems: 'center' }}></i>;
+        const dayMap = {
+            1: 'Montag', 2: 'Dienstag', 3: 'Mittwoch', 4: 'Donnerstag', 5: 'Freitag', 6: 'Samstag', 0: 'Sonntag'
         };
 
-        // --- Main App Component ---
+        const getISODate = (date) => date.toISOString().split('T')[0];
+        const formatDate = (date) => {
+            return new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
+        };
+
+        // --- Components ---
+        const Icon = ({ name, size = 16, className = "" }) => {
+            useEffect(() => {
+                if (window.lucide) lucide.createIcons();
+            }, [name]);
+            return <i data-lucide={name} className={className} style={{ width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}></i>;
+        };
+
         function App() {
             const [activeTab, setActiveTab] = useState('heute');
             const [todos, setTodos] = useState(() => JSON.parse(localStorage.getItem('p_todos') || '[]'));
@@ -110,7 +120,7 @@
                 localStorage.setItem('p_plan', JSON.stringify(plan));
                 localStorage.setItem('p_comp', JSON.stringify(completedSessions));
                 localStorage.setItem('p_over', JSON.stringify(sessionOverrides));
-                lucide.createIcons();
+                if (window.lucide) lucide.createIcons();
             }, [todos, plan, completedSessions, sessionOverrides]);
 
             const todayISO = getISODate(new Date());
@@ -120,8 +130,10 @@
             
             const handleAddTodo = (date, category) => {
                 if (!newTodoText.trim()) { setAddingContext(null); return; }
-                setTodos([...todos, { id: Date.now().toString(), text: newTodoText, completed: false, category, date }]);
-                setNewTodoText(''); setAddingContext(null);
+                const newTodo = { id: Date.now().toString(), text: newTodoText, completed: false, category, date };
+                setTodos([...todos, newTodo]);
+                setNewTodoText('');
+                setAddingContext(null);
             };
 
             const toggleSessionCompletion = (dateStr) => {
@@ -135,32 +147,31 @@
             const renderTodoSection = (dateStr, category) => {
                 const sectionTodos = todos.filter(t => t.date === dateStr && t.category === category);
                 const isAdding = addingContext?.date === dateStr && addingContext?.category === category;
+
                 return (
                     <div className="space-y-2">
                         <div className="flex justify-between items-center group/cat">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{category}</span>
-                            <button onClick={() => setAddingContext({ date: dateStr, category })} className="opacity-0 group-hover/cat:opacity-100 p-1 hover:bg-gray-100 rounded transition-all">
+                            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">{category}</span>
+                            <button onClick={() => setAddingContext({ date: dateStr, category })} className="p-1 hover:bg-card rounded opacity-0 group-hover/cat:opacity-100 transition-opacity">
                                 <Icon name="plus" size={12} />
                             </button>
                         </div>
                         <div className="space-y-1.5">
                             {sectionTodos.map(todo => (
                                 <div key={todo.id} className="flex items-center gap-2 group/item">
-                                    <button onClick={() => toggleTodo(todo.id)} className="shrink-0 transition-transform active:scale-90">
-                                        <div className={`w-3.5 h-3.5 border rounded-[3px] flex items-center justify-center transition-all ${todo.completed ? 'bg-black border-black' : 'border-gray-300 group-hover/item:border-black'}`}>
+                                    <button onClick={() => toggleTodo(todo.id)} className="shrink-0 transition-transform active:scale-95">
+                                        <div className={`w-3.5 h-3.5 border rounded-[3px] flex items-center justify-center transition-colors ${todo.completed ? 'bg-black border-black' : 'border-gray-200 group-hover/item:border-black'}`}>
                                             {todo.completed && <Icon name="check" size={10} className="text-white" />}
                                         </div>
                                     </button>
-                                    <span className={`text-[12px] leading-tight flex-1 ${todo.completed ? 'text-gray-400 line-through' : 'text-black'}`}>{todo.text}</span>
-                                    <button onClick={() => deleteTodo(todo.id)} className="opacity-0 group-hover/item:opacity-100 text-gray-300 hover:text-red-500 transition-all">
-                                        <Icon name="trash-2" size={12} />
-                                    </button>
+                                    <span className={`text-[12px] leading-tight flex-1 ${todo.completed ? 'text-text-secondary line-through opacity-50' : 'text-text-primary'}`}>{todo.text}</span>
+                                    <button onClick={() => deleteTodo(todo.id)} className="opacity-0 group-hover/item:opacity-100 text-gray-300 hover:text-red-500"><Icon name="trash-2" size={12}/></button>
                                 </div>
                             ))}
                             {isAdding ? (
-                                <input autoFocus value={newTodoText} onChange={e => setNewTodoText(e.target.value)} onKeyDown={e => { if(e.key==='Enter') handleAddTodo(dateStr, category); if(e.key==='Escape') setAddingContext(null); }} className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 text-[11px] outline-none" />
+                                <input autoFocus value={newTodoText} onChange={e => setNewTodoText(e.target.value)} onKeyDown={e => { if(e.key==='Enter') handleAddTodo(dateStr, category); if(e.key==='Escape') setAddingContext(null); }} className="w-full bg-bg border border-border rounded px-2 py-1 text-[11px] outline-none focus:border-black" />
                             ) : sectionTodos.length === 0 && (
-                                <button onClick={() => setAddingContext({ date: dateStr, category })} className="text-[10px] text-gray-400 hover:text-black font-medium transition-colors">+ Hinzufügen</button>
+                                <button onClick={() => setAddingContext({ date: dateStr, category })} className="text-[10px] text-text-secondary hover:text-black transition-colors">+ Hinzufügen</button>
                             )}
                         </div>
                     </div>
@@ -175,88 +186,84 @@
             const successRate = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
 
             return (
-                <div className="min-h-screen bg-bg text-black pb-safe">
-                    <header className="px-6 sm:px-10 pt-10 sm:pt-16 pb-4 sticky top-0 bg-white/90 backdrop-blur-md z-10 border-b border-gray-100">
+                <div className="min-h-screen bg-bg text-text-primary pb-safe flex flex-col">
+                    <header className="px-6 sm:px-10 pt-10 sm:pt-16 pb-4 sticky top-0 bg-white/90 backdrop-blur-md z-10 border-b border-border/50">
                         <div className="max-w-6xl mx-auto flex justify-between items-start">
-                            <div>
-                                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">Performance Planner</p>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary mb-1">Performance Planner</span>
                                 <h1 className="text-2xl font-bold tracking-tight">{formatDate(new Date())}</h1>
                             </div>
                         </div>
                         <div className="max-w-6xl mx-auto flex gap-8 mt-8">
                             {['heute', 'kalender', 'settings'].map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === tab ? 'text-black' : 'text-gray-400 hover:text-black'}`}>
-                                    {tab==='heute'?'Heute':tab==='kalender'?'Kalender':'Optionen'}
-                                    {activeTab === tab && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />}
+                                <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === tab ? 'text-black' : 'text-text-secondary hover:text-black'}`}>
+                                    {tab === 'heute' ? 'Heute' : tab === 'kalender' ? 'Kalender' : 'Optionen'}
+                                    {activeTab === tab && <motion.div layoutId="t" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />}
                                 </button>
                             ))}
                         </div>
                     </header>
 
-                    <main className="px-6 sm:px-10 py-8 max-w-6xl mx-auto">
+                    <main className="px-6 sm:px-10 max-w-6xl mx-auto mt-6 w-full flex-1">
                         <AnimatePresence mode="wait">
                             {activeTab === 'heute' && (
-                                <motion.div key="heute" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid lg:grid-cols-[300px_1fr] gap-8">
+                                <motion.div key="h" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid lg:grid-cols-[300px_1fr] gap-8">
                                     <aside className="space-y-4">
-                                        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                                            <h2 className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-4">Heutiger Fokus</h2>
+                                        <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
+                                            <h2 className="text-[10px] uppercase tracking-widest text-text-secondary font-bold mb-4">Heutiger Fokus</h2>
                                             <div className="flex justify-between items-start mb-2">
-                                                <h3 className="text-lg font-bold">{todayFocus?.title || 'Rest Day'}</h3>
+                                                <h3 className="text-xl font-bold">{todayFocus?.title || 'Rest Day'}</h3>
                                                 {todayFocus && (
                                                     <button onClick={() => toggleSessionCompletion(todayISO)} className={`p-2 rounded-full transition-all ${isTodayDone ? 'bg-[#2ECC71] text-white' : 'bg-gray-50 text-gray-300'}`}>
-                                                        <Icon name="check" size={16} />
+                                                        <Icon name="check" size={18} />
                                                     </button>
                                                 )}
                                             </div>
-                                            <p className="text-gray-500 text-[13px] leading-relaxed">{todayFocus?.description}</p>
+                                            <p className="text-text-secondary text-sm leading-relaxed">{todayFocus?.description}</p>
                                         </div>
-                                        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <h2 className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Fortschritt</h2>
-                                                <span className={`text-xs font-bold ${Math.round(successRate) === 100 ? 'text-[#2ECC71]' : 'text-black'}`}>{Math.round(successRate)}%</span>
+                                        <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h2 className="text-[10px] uppercase tracking-widest text-text-secondary font-bold">Fortschritt</h2>
+                                                <span className={`text-xs font-bold transition-colors ${Math.round(successRate) === 100 ? 'text-[#2ECC71]' : 'text-black'}`}>{Math.round(successRate)}%</span>
                                             </div>
-                                            <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-1 bg-border rounded-full overflow-hidden">
                                                 <motion.div animate={{ width: `${successRate}%`, backgroundColor: Math.round(successRate) === 100 ? '#2ECC71' : '#000000' }} className="h-full" />
                                             </div>
                                         </div>
                                     </aside>
                                     <div className="grid sm:grid-cols-2 gap-4">
-                                        {['Uni', 'Sport', 'Arbeit', 'Sonstiges'].map(cat => (
-                                            <div key={cat} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm h-fit">
-                                                {renderTodoSection(todayISO, cat)}
-                                            </div>
-                                        ))}
+                                        {['Uni', 'Sport', 'Arbeit', 'Sonstiges'].map(c => <div key={c} className="bg-white border border-border rounded-2xl p-6 shadow-sm">{renderTodoSection(todayISO, c)}</div>)}
                                     </div>
                                 </motion.div>
                             )}
 
                             {activeTab === 'kalender' && (
-                                <motion.div key="kalender" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+                                <motion.div key="k" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
                                     <div className="flex items-center justify-between max-w-sm mx-auto">
                                         <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1, 1))} className="p-2 hover:bg-white rounded-full"><Icon name="chevron-left" size={20}/></button>
                                         <div className="text-center">
                                             <h2 className="text-xl font-bold">{new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentMonth)}</h2>
-                                            <button onClick={() => { setCurrentMonth(new Date()); setCalendarFocusDate(todayISO); }} className="text-[9px] font-bold uppercase tracking-widest text-gray-400 hover:text-black">Heute</button>
+                                            <button onClick={() => { setCurrentMonth(new Date()); setCalendarFocusDate(todayISO); }} className="text-[9px] font-bold uppercase tracking-widest text-accent mt-1 hover:underline">Heute</button>
                                         </div>
                                         <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 1))} className="p-2 hover:bg-white rounded-full"><Icon name="chevron-right" size={20}/></button>
                                     </div>
-                                    <div className="bg-white border border-gray-100 rounded-3xl p-6 max-w-sm mx-auto shadow-sm">
+                                    <div className="bg-white border border-border rounded-3xl p-6 max-w-sm mx-auto shadow-sm">
                                         <div className="grid grid-cols-7 gap-1 text-center mb-4">
-                                            {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => <span key={d} className="text-[9px] font-bold text-gray-300 uppercase">{d}</span>)}
+                                            {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => <span key={d} className="text-[10px] font-bold text-text-secondary uppercase">{d}</span>)}
                                         </div>
                                         <div className="grid grid-cols-7 gap-1">
                                             {(() => {
                                                 const start = (new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay() + 6) % 7;
                                                 const days = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
                                                 const items = [];
-                                                for(let i=0; i<start; i++) items.push(<div key={`p-${i}`} />);
+                                                for(let i=0; i<start; i++) items.push(<div key={`p-${i}`} className="aspect-square" />);
                                                 for(let i=1; i<=days; i++) {
                                                     const d = getISODate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i));
                                                     const isSel = calendarFocusDate === d;
                                                     items.push(
-                                                        <button key={i} onClick={() => setCalendarFocusDate(d)} className={`aspect-square rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all ${isSel ? 'bg-black text-white' : d === todayISO ? 'bg-gray-50 text-black border border-gray-200' : 'hover:bg-gray-50'}`}>
+                                                        <button key={i} onClick={() => setCalendarFocusDate(d)} className={`aspect-square rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all ${isSel ? 'bg-black text-white' : d === todayISO ? 'bg-card text-black border border-black/10' : 'hover:bg-gray-50'}`}>
                                                             {i}
-                                                            <div className="flex gap-0.5 mt-0.5">
+                                                            <div className="flex gap-0.5 mt-1">
                                                                 {todos.some(t => t.date === d) && <div className={`w-0.5 h-0.5 rounded-full ${isSel?'bg-white/40':'bg-gray-300'}`} />}
                                                                 {completedSessions.includes(d) && <div className={`w-0.5 h-0.5 rounded-full ${isSel?'bg-white':'bg-[#2ECC71]'}`} />}
                                                             </div>
@@ -267,39 +274,33 @@
                                             })()}
                                         </div>
                                     </div>
-                                    <div className="grid lg:grid-cols-[300px_1fr] gap-8 pt-8 border-t border-gray-100">
+                                    <div className="grid lg:grid-cols-[300px_1fr] gap-8 pt-8 border-t border-border">
                                         <aside className="space-y-4">
-                                            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                                                <h2 className="text-[10px] uppercase font-bold text-gray-400 mb-4">{formatDate(new Date(calendarFocusDate))}</h2>
+                                            <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
+                                                <h2 className="text-[10px] uppercase font-bold text-text-secondary mb-4">{formatDate(new Date(calendarFocusDate))}</h2>
                                                 <div className="space-y-4">
-                                                    <input value={sessionOverrides[calendarFocusDate]?.title || plan.find(s=>s.day===dayMap[new Date(calendarFocusDate).getDay()])?.title || ''} onChange={e => updateSessionOverride(calendarFocusDate, {title:e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-bold outline-none focus:border-black" placeholder="Titel" />
-                                                    <textarea value={sessionOverrides[calendarFocusDate]?.description || plan.find(s=>s.day===dayMap[new Date(calendarFocusDate).getDay()])?.description || ''} onChange={e => updateSessionOverride(calendarFocusDate, {description:e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs h-24 resize-none outline-none focus:border-black" placeholder="Beschreibung" />
-                                                    <button onClick={() => toggleSessionCompletion(calendarFocusDate)} className={`w-full py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${completedSessions.includes(calendarFocusDate) ? 'bg-[#2ECC71] text-white' : 'bg-black text-white'}`}>
-                                                        {completedSessions.includes(calendarFocusDate) ? 'Abgeschlossen' : 'Als erledigt markieren'}
-                                                    </button>
+                                                    <input value={sessionOverrides[calendarFocusDate]?.title || plan.find(s=>s.day===dayMap[new Date(calendarFocusDate).getDay()])?.title || ''} onChange={e => updateSessionOverride(calendarFocusDate, {title:e.target.value})} className="w-full bg-bg border border-border rounded-xl px-4 py-2 text-sm font-bold outline-none focus:border-black" placeholder="Workout Titel"/>
+                                                    <textarea value={sessionOverrides[calendarFocusDate]?.description || plan.find(s=>s.day===dayMap[new Date(calendarFocusDate).getDay()])?.description || ''} onChange={e => updateSessionOverride(calendarFocusDate, {description:e.target.value})} className="w-full bg-bg border border-border rounded-xl px-4 py-2 text-xs h-24 resize-none outline-none focus:border-black" placeholder="Notizen..."/>
+                                                    <button onClick={() => toggleSessionCompletion(calendarFocusDate)} className={`w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${completedSessions.includes(calendarFocusDate) ? 'bg-[#2ECC71] text-white' : 'bg-black text-white'}`}>Erledigt</button>
                                                 </div>
                                             </div>
                                         </aside>
-                                        <div className="grid sm:grid-cols-2 gap-4">
-                                            {['Uni', 'Sport', 'Arbeit', 'Sonstiges'].map(cat => (
-                                                <div key={cat} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm h-fit">
-                                                    {renderTodoSection(calendarFocusDate, cat)}
-                                                </div>
-                                            ))}
+                                        <div className="grid sm:grid-cols-2 gap-4 h-fit">
+                                            {['Uni', 'Sport', 'Arbeit', 'Sonstiges'].map(c => <div key={c} className="bg-white border border-border rounded-2xl p-6 shadow-sm">{renderTodoSection(calendarFocusDate, c)}</div>)}
                                         </div>
                                     </div>
                                 </motion.div>
                             )}
 
                             {activeTab === 'settings' && (
-                                <motion.div key="settings" initial={{ opacity:0 }} animate={{ opacity:1 }} className="max-w-xl mx-auto space-y-6">
-                                    <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
-                                        <h2 className="text-xl font-bold mb-6">Wochenplan</h2>
+                                <motion.div key="s" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-xl mx-auto space-y-6">
+                                    <div className="bg-white border border-border rounded-3xl p-8 shadow-sm">
+                                        <h2 className="text-xl font-bold mb-6">Wochen-Strategie</h2>
                                         {plan.map(s => (
-                                            <div key={s.day} className="mb-4 pb-4 border-b border-gray-50 last:border-0">
-                                                <label className="text-[9px] font-bold text-gray-400 uppercase block mb-1">{s.day}</label>
-                                                <input value={s.title} onChange={e => setPlan(plan.map(p=>p.day===s.day?{...p, title:e.target.value}:p))} className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5 text-sm font-bold mb-2 outline-none" />
-                                                <input value={s.description} onChange={e => setPlan(plan.map(p=>p.day===s.day?{...p, description:e.target.value}:p))} className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5 text-xs outline-none" />
+                                            <div key={s.day} className="mb-4 pb-4 border-b border-border/50 last:border-0 last:pb-0">
+                                                <label className="text-[9px] font-bold text-text-secondary uppercase block mb-1">{s.day}</label>
+                                                <input value={s.title} onChange={e => setPlan(plan.map(p=>p.day===s.day?{...p, title:e.target.value}:p))} className="w-full bg-bg border border-border rounded-xl px-4 py-2 text-sm font-bold mb-2 outline-none"/>
+                                                <input value={s.description} onChange={e => setPlan(plan.map(p=>p.day===s.day?{...p, description:e.target.value}:p))} className="w-full bg-bg border border-border rounded-xl px-4 py-2 text-xs outline-none"/>
                                             </div>
                                         ))}
                                     </div>
@@ -315,7 +316,7 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
 
-        // Standalone Navigation Hook
+        // Navigation fix for standalone iOS mode
         (function(a,b,c){if(c in b&&b[c]){var d,e=a.location,f=/^(a|html)$/i;a.addEventListener("click",function(a){d=a.target;while(!f.test(d.nodeName))d=d.parentNode;"href"in d&&(d.href.indexOf("http")||~d.href.indexOf(e.host))&&(a.preventDefault(),e.href=d.href)},!1)}})(document,window.navigator,"standalone");
     </script>
 </body>
