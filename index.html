@@ -1,323 +1,186 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Performance Planner</title>
-    
-    <!-- Libraries via CDN -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
-        :root {
-            --bg: #FAFAFA;
-            --card: #FFFFFF;
-            --text-primary: #000000;
-            --text-secondary: #666666;
-            --border: #EAEAEA;
-            --accent: #000000;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg);
-            color: var(--text-primary);
-            margin: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #DDD; border-radius: 10px; }
-
-        /* iOS Safe Area */
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        
-        .selection-accent::selection {
-            background: var(--accent);
-            color: white;
-        }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #ffffff; }
+        .safe-top { padding-top: env(safe-area-inset-top); }
+        .card { background: #f9f9f9; border: 1px solid #eeeeee; border-radius: 16px; transition: all 0.2s; }
+        .tab-active { border-bottom: 2px solid #000; font-weight: 600; }
+        input:checked + label { text-decoration: line-through; color: #999; }
+        .progress-green { color: #10b981 !important; }
+        .bg-progress-green { background-color: #10b981 !important; }
     </style>
+</head>
+<body class="safe-top text-gray-900">
+    <div class="px-6 py-4 flex justify-between items-center">
+        <h1 id="currentDate" class="text-lg font-semibold tracking-tight"></h1>
+    </div>
+
+    <div class="flex px-6 border-b border-gray-100 mb-6">
+        <button onclick="switchTab('heute')" id="tab-heute" class="py-2 mr-6 tab-active">Heute</button>
+        <button onclick="switchTab('kalender')" id="tab-kalender" class="py-2 mr-6 text-gray-400">Kalender</button>
+        <button onclick="switchTab('settings')" id="tab-settings" class="py-2 text-gray-400">Einstellungen</button>
+    </div>
+
+    <div id="content-heute" class="px-6 space-y-6">
+        <div class="card p-5">
+            <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-1">Heutiger Fokus</p>
+            <h2 id="todayWorkout" class="text-xl font-bold">Laden...</h2>
+        </div>
+
+        <div class="flex justify-between items-end">
+            <h3 class="text-2xl font-bold">Fortschritt</h3>
+            <span id="progressText" class="text-2xl font-bold">0%</span>
+        </div>
+        <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+            <div id="progressBar" class="bg-black h-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+
+        <div id="todoSections" class="space-y-6 pb-20">
+            </div>
+    </div>
+
+    <div id="content-kalender" class="hidden px-6">
+        <h2 class="text-xl font-bold mb-4">Kalender</h2>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-2 mb-4 text-center"></div>
+        <div id="dayDetail" class="card p-4 hidden">
+            <h3 id="selectedDateText" class="font-bold mb-4"></h3>
+            <div id="dayTodos"></div>
+        </div>
+    </div>
+
+    <div id="content-settings" class="hidden px-6">
+        <h2 class="text-xl font-bold mb-4">Einstellungen</h2>
+        <p class="text-gray-500">Hier kannst du bald deinen Standard-Plan anpassen.</p>
+    </div>
 
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        bg: '#FAFAFA',
-                        card: '#FFFFFF',
-                        border: '#EAEAEA',
-                        accent: '#000000',
-                        text: {
-                            primary: '#000000',
-                            secondary: '#666666'
-                        }
-                    }
-                }
+        let state = JSON.parse(localStorage.getItem('plannerState')) || {
+            todos: {},
+            workouts: { 'Mon': 'Push', 'Tue': 'Laufen (Intervalle)', 'Wed': 'Pull', 'Thu': 'Laufen (Tempo)', 'Fri': 'Legs', 'Sat': 'Longrun', 'Sun': 'Schwimmen' }
+        };
+
+        const categories = ['Uni', 'Sport', 'Arbeit', 'Sonstiges'];
+
+        function init() {
+            const today = new Date();
+            document.getElementById('currentDate').innerText = today.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+            renderTodos();
+            updateWorkout();
+            updateProgress();
+        }
+
+        function switchTab(tab) {
+            ['heute', 'kalender', 'settings'].forEach(t => {
+                document.getElementById('content-' + t).classList.add('hidden');
+                document.getElementById('tab-' + t).classList.remove('tab-active', 'text-gray-900');
+                document.getElementById('tab-' + t).classList.add('text-gray-400');
+            });
+            document.getElementById('content-' + tab).classList.remove('hidden');
+            document.getElementById('tab-' + tab).classList.add('tab-active', 'text-gray-900');
+        }
+
+        function renderTodos() {
+            const container = document.getElementById('todoSections');
+            container.innerHTML = '';
+            const dateKey = getTodayKey();
+            
+            categories.forEach(cat => {
+                const section = document.createElement('div');
+                section.className = 'space-y-3';
+                section.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-semibold text-gray-400 text-sm uppercase tracking-wider">${cat}</h4>
+                        <button onclick="addTodo('${cat}')" class="text-xl">+</button>
+                    </div>
+                    <div id="list-${cat}" class="space-y-2"></div>
+                `;
+                container.appendChild(section);
+                renderCategoryItems(cat, dateKey);
+            });
+        }
+
+        function renderCategoryItems(cat, dateKey) {
+            const list = document.getElementById('list-' + cat);
+            list.innerHTML = '';
+            const items = (state.todos[dateKey] && state.todos[dateKey][cat]) || [];
+            
+            items.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-3 p-1';
+                div.innerHTML = `
+                    <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleTodo('${cat}', ${idx})" class="w-5 h-5 rounded-full border-gray-300 accent-black">
+                    <label class="flex-grow">${item.text}</label>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function addTodo(cat) {
+            const text = prompt(`${cat}: Was steht an?`);
+            if (!text) return;
+            const dateKey = getTodayKey();
+            if (!state.todos[dateKey]) state.todos[dateKey] = {};
+            if (!state.todos[dateKey][cat]) state.todos[dateKey][cat] = [];
+            state.todos[dateKey][cat].push({ text, done: false });
+            save();
+            renderTodos();
+            updateProgress();
+        }
+
+        function toggleTodo(cat, idx) {
+            const dateKey = getTodayKey();
+            state.todos[dateKey][cat][idx].done = !state.todos[dateKey][cat][idx].done;
+            save();
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const dateKey = getTodayKey();
+            const dayTodos = state.todos[dateKey];
+            let total = 0, done = 0;
+            if (dayTodos) {
+                Object.values(dayTodos).flat().forEach(t => {
+                    total++;
+                    if (t.done) done++;
+                });
+            }
+            const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+            const textEl = document.getElementById('progressText');
+            const barEl = document.getElementById('progressBar');
+            
+            textEl.innerText = percent + '%';
+            barEl.style.width = percent + '%';
+
+            if (percent === 100 && total > 0) {
+                textEl.classList.add('progress-green');
+                barEl.classList.add('bg-progress-green');
+            } else {
+                textEl.classList.remove('progress-green');
+                barEl.classList.remove('bg-progress-green');
             }
         }
-    </script>
-</head>
-<body class="selection-accent">
-    <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-        const { motion, AnimatePresence } = FramerMotion;
-
-        // --- Constants ---
-        const DEFAULT_PLAN = [
-            { day: 'Montag', title: 'Push (Kraft)', description: 'Brust, Schultern, Trizeps. Grundübungen mit hoher Intensität.', type: 'Strength' },
-            { day: 'Dienstag', title: 'Intervalltraining', description: '4:15 min/km Pace. 8x800m mit 2min Pause.', type: 'Running' },
-            { day: 'Mittwoch', title: 'Pull (Kraft)', description: 'Rücken, Bizeps. Fokus auf Klimmzüge und Rudern.', type: 'Strength' },
-            { day: 'Donnerstag', title: 'Tempolauf', description: '10km in moderat-hohem Tempo. Zielpace: 4:45 min/km.', type: 'Running' },
-            { day: 'Freitag', title: 'Legs (Kraft)', description: 'Kniebeugen, Kreuzheben. Maximalkraft-Fokus.', type: 'Strength' },
-            { day: 'Samstag', title: 'Longrun', description: 'Grundlagenausdauer. 18-22km bei lockerem Tempo.', type: 'Running' },
-            { day: 'Sonntag', title: 'Recovery', description: 'Schwimmen oder Mobility-Session. Aktive Regeneration.', type: 'Recovery' },
-        ];
-
-        const dayMap = {
-            1: 'Montag', 2: 'Dienstag', 3: 'Mittwoch', 4: 'Donnerstag', 5: 'Freitag', 6: 'Samstag', 0: 'Sonntag'
-        };
-
-        const getISODate = (date) => date.toISOString().split('T')[0];
-        const formatDate = (date) => {
-            return new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
-        };
-
-        // --- Components ---
-        const Icon = ({ name, size = 16, className = "" }) => {
-            useEffect(() => {
-                if (window.lucide) lucide.createIcons();
-            }, [name]);
-            return <i data-lucide={name} className={className} style={{ width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}></i>;
-        };
-
-        function App() {
-            const [activeTab, setActiveTab] = useState('heute');
-            const [todos, setTodos] = useState(() => JSON.parse(localStorage.getItem('p_todos') || '[]'));
-            const [plan, setPlan] = useState(() => JSON.parse(localStorage.getItem('p_plan') || JSON.stringify(DEFAULT_PLAN)));
-            const [completedSessions, setCompletedSessions] = useState(() => JSON.parse(localStorage.getItem('p_comp') || '[]'));
-            const [sessionOverrides, setSessionOverrides] = useState(() => JSON.parse(localStorage.getItem('p_over') || '{}'));
-            
-            const [addingContext, setAddingContext] = useState(null);
-            const [newTodoText, setNewTodoText] = useState('');
-            const [calendarFocusDate, setCalendarFocusDate] = useState(getISODate(new Date()));
-            const [currentMonth, setCurrentMonth] = useState(new Date());
-
-            useEffect(() => {
-                localStorage.setItem('p_todos', JSON.stringify(todos));
-                localStorage.setItem('p_plan', JSON.stringify(plan));
-                localStorage.setItem('p_comp', JSON.stringify(completedSessions));
-                localStorage.setItem('p_over', JSON.stringify(sessionOverrides));
-                if (window.lucide) lucide.createIcons();
-            }, [todos, plan, completedSessions, sessionOverrides]);
-
-            const todayISO = getISODate(new Date());
-
-            const toggleTodo = (id) => setTodos(todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-            const deleteTodo = (id) => setTodos(todos.filter(t => t.id !== id));
-            
-            const handleAddTodo = (date, category) => {
-                if (!newTodoText.trim()) { setAddingContext(null); return; }
-                const newTodo = { id: Date.now().toString(), text: newTodoText, completed: false, category, date };
-                setTodos([...todos, newTodo]);
-                setNewTodoText('');
-                setAddingContext(null);
-            };
-
-            const toggleSessionCompletion = (dateStr) => {
-                setCompletedSessions(prev => prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]);
-            };
-
-            const updateSessionOverride = (dateStr, updates) => {
-                setSessionOverrides(prev => ({ ...prev, [dateStr]: { ...prev[dateStr], ...updates } }));
-            };
-
-            const renderTodoSection = (dateStr, category) => {
-                const sectionTodos = todos.filter(t => t.date === dateStr && t.category === category);
-                const isAdding = addingContext?.date === dateStr && addingContext?.category === category;
-
-                return (
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center group/cat">
-                            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">{category}</span>
-                            <button onClick={() => setAddingContext({ date: dateStr, category })} className="p-1 hover:bg-card rounded opacity-0 group-hover/cat:opacity-100 transition-opacity">
-                                <Icon name="plus" size={12} />
-                            </button>
-                        </div>
-                        <div className="space-y-1.5">
-                            {sectionTodos.map(todo => (
-                                <div key={todo.id} className="flex items-center gap-2 group/item">
-                                    <button onClick={() => toggleTodo(todo.id)} className="shrink-0 transition-transform active:scale-95">
-                                        <div className={`w-3.5 h-3.5 border rounded-[3px] flex items-center justify-center transition-colors ${todo.completed ? 'bg-black border-black' : 'border-gray-200 group-hover/item:border-black'}`}>
-                                            {todo.completed && <Icon name="check" size={10} className="text-white" />}
-                                        </div>
-                                    </button>
-                                    <span className={`text-[12px] leading-tight flex-1 ${todo.completed ? 'text-text-secondary line-through opacity-50' : 'text-text-primary'}`}>{todo.text}</span>
-                                    <button onClick={() => deleteTodo(todo.id)} className="opacity-0 group-hover/item:opacity-100 text-gray-300 hover:text-red-500"><Icon name="trash-2" size={12}/></button>
-                                </div>
-                            ))}
-                            {isAdding ? (
-                                <input autoFocus value={newTodoText} onChange={e => setNewTodoText(e.target.value)} onKeyDown={e => { if(e.key==='Enter') handleAddTodo(dateStr, category); if(e.key==='Escape') setAddingContext(null); }} className="w-full bg-bg border border-border rounded px-2 py-1 text-[11px] outline-none focus:border-black" />
-                            ) : sectionTodos.length === 0 && (
-                                <button onClick={() => setAddingContext({ date: dateStr, category })} className="text-[10px] text-text-secondary hover:text-black transition-colors">+ Hinzufügen</button>
-                            )}
-                        </div>
-                    </div>
-                );
-            };
-
-            const todayFocus = { ...plan.find(s => s.day === dayMap[new Date().getDay()]), ...sessionOverrides[todayISO] };
-            const isTodayDone = completedSessions.includes(todayISO);
-            const todayTodos = todos.filter(t => t.date === todayISO);
-            const totalItems = todayTodos.length + (todayFocus?.type !== 'Recovery' ? 1 : 0);
-            const completedItems = todayTodos.filter(t => t.completed).length + (isTodayDone && todayFocus?.type !== 'Recovery' ? 1 : 0);
-            const successRate = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
-
-            return (
-                <div className="min-h-screen bg-bg text-text-primary pb-safe flex flex-col">
-                    <header className="px-6 sm:px-10 pt-10 sm:pt-16 pb-4 sticky top-0 bg-white/90 backdrop-blur-md z-10 border-b border-border/50">
-                        <div className="max-w-6xl mx-auto flex justify-between items-start">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary mb-1">Performance Planner</span>
-                                <h1 className="text-2xl font-bold tracking-tight">{formatDate(new Date())}</h1>
-                            </div>
-                        </div>
-                        <div className="max-w-6xl mx-auto flex gap-8 mt-8">
-                            {['heute', 'kalender', 'settings'].map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === tab ? 'text-black' : 'text-text-secondary hover:text-black'}`}>
-                                    {tab === 'heute' ? 'Heute' : tab === 'kalender' ? 'Kalender' : 'Optionen'}
-                                    {activeTab === tab && <motion.div layoutId="t" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />}
-                                </button>
-                            ))}
-                        </div>
-                    </header>
-
-                    <main className="px-6 sm:px-10 max-w-6xl mx-auto mt-6 w-full flex-1">
-                        <AnimatePresence mode="wait">
-                            {activeTab === 'heute' && (
-                                <motion.div key="h" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid lg:grid-cols-[300px_1fr] gap-8">
-                                    <aside className="space-y-4">
-                                        <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
-                                            <h2 className="text-[10px] uppercase tracking-widest text-text-secondary font-bold mb-4">Heutiger Fokus</h2>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <h3 className="text-xl font-bold">{todayFocus?.title || 'Rest Day'}</h3>
-                                                {todayFocus && (
-                                                    <button onClick={() => toggleSessionCompletion(todayISO)} className={`p-2 rounded-full transition-all ${isTodayDone ? 'bg-[#2ECC71] text-white' : 'bg-gray-50 text-gray-300'}`}>
-                                                        <Icon name="check" size={18} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <p className="text-text-secondary text-sm leading-relaxed">{todayFocus?.description}</p>
-                                        </div>
-                                        <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <h2 className="text-[10px] uppercase tracking-widest text-text-secondary font-bold">Fortschritt</h2>
-                                                <span className={`text-xs font-bold transition-colors ${Math.round(successRate) === 100 ? 'text-[#2ECC71]' : 'text-black'}`}>{Math.round(successRate)}%</span>
-                                            </div>
-                                            <div className="h-1 bg-border rounded-full overflow-hidden">
-                                                <motion.div animate={{ width: `${successRate}%`, backgroundColor: Math.round(successRate) === 100 ? '#2ECC71' : '#000000' }} className="h-full" />
-                                            </div>
-                                        </div>
-                                    </aside>
-                                    <div className="grid sm:grid-cols-2 gap-4">
-                                        {['Uni', 'Sport', 'Arbeit', 'Sonstiges'].map(c => <div key={c} className="bg-white border border-border rounded-2xl p-6 shadow-sm">{renderTodoSection(todayISO, c)}</div>)}
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {activeTab === 'kalender' && (
-                                <motion.div key="k" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-                                    <div className="flex items-center justify-between max-w-sm mx-auto">
-                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1, 1))} className="p-2 hover:bg-white rounded-full"><Icon name="chevron-left" size={20}/></button>
-                                        <div className="text-center">
-                                            <h2 className="text-xl font-bold">{new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentMonth)}</h2>
-                                            <button onClick={() => { setCurrentMonth(new Date()); setCalendarFocusDate(todayISO); }} className="text-[9px] font-bold uppercase tracking-widest text-accent mt-1 hover:underline">Heute</button>
-                                        </div>
-                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 1))} className="p-2 hover:bg-white rounded-full"><Icon name="chevron-right" size={20}/></button>
-                                    </div>
-                                    <div className="bg-white border border-border rounded-3xl p-6 max-w-sm mx-auto shadow-sm">
-                                        <div className="grid grid-cols-7 gap-1 text-center mb-4">
-                                            {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => <span key={d} className="text-[10px] font-bold text-text-secondary uppercase">{d}</span>)}
-                                        </div>
-                                        <div className="grid grid-cols-7 gap-1">
-                                            {(() => {
-                                                const start = (new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay() + 6) % 7;
-                                                const days = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-                                                const items = [];
-                                                for(let i=0; i<start; i++) items.push(<div key={`p-${i}`} className="aspect-square" />);
-                                                for(let i=1; i<=days; i++) {
-                                                    const d = getISODate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i));
-                                                    const isSel = calendarFocusDate === d;
-                                                    items.push(
-                                                        <button key={i} onClick={() => setCalendarFocusDate(d)} className={`aspect-square rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all ${isSel ? 'bg-black text-white' : d === todayISO ? 'bg-card text-black border border-black/10' : 'hover:bg-gray-50'}`}>
-                                                            {i}
-                                                            <div className="flex gap-0.5 mt-1">
-                                                                {todos.some(t => t.date === d) && <div className={`w-0.5 h-0.5 rounded-full ${isSel?'bg-white/40':'bg-gray-300'}`} />}
-                                                                {completedSessions.includes(d) && <div className={`w-0.5 h-0.5 rounded-full ${isSel?'bg-white':'bg-[#2ECC71]'}`} />}
-                                                            </div>
-                                                        </button>
-                                                    );
-                                                }
-                                                return items;
-                                            })()}
-                                        </div>
-                                    </div>
-                                    <div className="grid lg:grid-cols-[300px_1fr] gap-8 pt-8 border-t border-border">
-                                        <aside className="space-y-4">
-                                            <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
-                                                <h2 className="text-[10px] uppercase font-bold text-text-secondary mb-4">{formatDate(new Date(calendarFocusDate))}</h2>
-                                                <div className="space-y-4">
-                                                    <input value={sessionOverrides[calendarFocusDate]?.title || plan.find(s=>s.day===dayMap[new Date(calendarFocusDate).getDay()])?.title || ''} onChange={e => updateSessionOverride(calendarFocusDate, {title:e.target.value})} className="w-full bg-bg border border-border rounded-xl px-4 py-2 text-sm font-bold outline-none focus:border-black" placeholder="Workout Titel"/>
-                                                    <textarea value={sessionOverrides[calendarFocusDate]?.description || plan.find(s=>s.day===dayMap[new Date(calendarFocusDate).getDay()])?.description || ''} onChange={e => updateSessionOverride(calendarFocusDate, {description:e.target.value})} className="w-full bg-bg border border-border rounded-xl px-4 py-2 text-xs h-24 resize-none outline-none focus:border-black" placeholder="Notizen..."/>
-                                                    <button onClick={() => toggleSessionCompletion(calendarFocusDate)} className={`w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${completedSessions.includes(calendarFocusDate) ? 'bg-[#2ECC71] text-white' : 'bg-black text-white'}`}>Erledigt</button>
-                                                </div>
-                                            </div>
-                                        </aside>
-                                        <div className="grid sm:grid-cols-2 gap-4 h-fit">
-                                            {['Uni', 'Sport', 'Arbeit', 'Sonstiges'].map(c => <div key={c} className="bg-white border border-border rounded-2xl p-6 shadow-sm">{renderTodoSection(calendarFocusDate, c)}</div>)}
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {activeTab === 'settings' && (
-                                <motion.div key="s" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-xl mx-auto space-y-6">
-                                    <div className="bg-white border border-border rounded-3xl p-8 shadow-sm">
-                                        <h2 className="text-xl font-bold mb-6">Wochen-Strategie</h2>
-                                        {plan.map(s => (
-                                            <div key={s.day} className="mb-4 pb-4 border-b border-border/50 last:border-0 last:pb-0">
-                                                <label className="text-[9px] font-bold text-text-secondary uppercase block mb-1">{s.day}</label>
-                                                <input value={s.title} onChange={e => setPlan(plan.map(p=>p.day===s.day?{...p, title:e.target.value}:p))} className="w-full bg-bg border border-border rounded-xl px-4 py-2 text-sm font-bold mb-2 outline-none"/>
-                                                <input value={s.description} onChange={e => setPlan(plan.map(p=>p.day===s.day?{...p, description:e.target.value}:p))} className="w-full bg-bg border border-border rounded-xl px-4 py-2 text-xs outline-none"/>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <button onClick={() => { if(confirm('Alle Daten löschen?')) { localStorage.clear(); window.location.reload(); } }} className="w-full py-3 border border-red-100 text-red-500 rounded-2xl text-[10px] uppercase font-bold tracking-widest hover:bg-red-50 transition-all">Gesamte App zurücksetzen</button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </main>
-                </div>
-            );
+        function updateWorkout() {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const dayName = days[new Date().getDay()];
+            document.getElementById('todayWorkout').innerText = state.workouts[dayName] || 'Rest Day';
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        function getTodayKey() { return new Date().toISOString().split('T')[0]; }
+        function save() { localStorage.setItem('plannerState', JSON.stringify(state)); }
 
-        // Navigation fix for standalone iOS mode
+        // iOS PWA Stay-in-App Script
         (function(a,b,c){if(c in b&&b[c]){var d,e=a.location,f=/^(a|html)$/i;a.addEventListener("click",function(a){d=a.target;while(!f.test(d.nodeName))d=d.parentNode;"href"in d&&(d.href.indexOf("http")||~d.href.indexOf(e.host))&&(a.preventDefault(),e.href=d.href)},!1)}})(document,window.navigator,"standalone");
+
+        init();
     </script>
 </body>
 </html>
